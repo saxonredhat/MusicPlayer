@@ -12,7 +12,6 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		HANDLE_MSG(hDlg, WM_INITDIALOG, Cls_OnInitDialog);
 		HANDLE_MSG(hDlg, WM_COMMAND, Cls_OnCommand);
-		//HANDLE_MSG(hDlg, WM_LBUTTONDBLCLK, Cls_OnLButtonDown);
 		HANDLE_MSG(hDlg, WM_CLOSE, Cls_OnClose);
 		HANDLE_MSG(hDlg, WM_HSCROLL, Cls_OnHScroll);
 		HANDLE_MSG(hDlg, WM_CONTEXTMENU, Cls_OnContextMenu);
@@ -28,11 +27,6 @@ BOOL Cls_OnInitDialog(HWND hDlg, HWND hwndFocus, LPARAM lParam) {
 	SetClassLong(hDlg, GCL_HICON, (long)hIcon);
 	//读取配置文件的歌单
 	LoadMusic(hDlg);
-	/*SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_ADDSTRING, (WPARAM)NULL, (LPARAM)L"E:\\BaiduMusic\\Songs\\北京北京-汪峰.mp3");
-	SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_ADDSTRING, (WPARAM)NULL, (LPARAM)L"E:\\BaiduMusic\\Songs\\当爱已成往事-张国荣.mp3");
-	SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_ADDSTRING, (WPARAM)NULL, (LPARAM)L"E:\\BaiduMusic\\Songs\\慢慢习惯-刘德华.mp3");
-	SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_ADDSTRING, (WPARAM)NULL, (LPARAM)L"E:\\BaiduMusic\\Songs\\当真就好-陈淑桦,张国荣.mp3");
-	SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_ADDSTRING, (WPARAM)NULL, (LPARAM)L"E:\\BaiduMusic\\Songs\\乖乖-谭晶,吴亦凡.mp3");*/
 	return TRUE;
 }
 
@@ -335,21 +329,3 @@ void CutSuffix(TCHAR *p)
 		p2--;
 	}
 }
-/*lstrcpy(musicDir, szFileName);
-		lstrcat(musicDir, L"\\");
-
-		p = szFileName + ofn.nFileOffset;
-		while (*p)
-		{
-			TCHAR musicPath[MAX_PATH] = L"";
-			lstrcpy(musicPath, musicDir);
-			lstrcat(musicPath, p);
-
-			TCHAR musicName[50] = L"";
-			lstrcpy(musicName, p);
-			CutSuffix(musicName);
-			SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_INSERTSTRING, -1, (LPARAM)musicName);
-
-			WritePrivateProfileString(appName, musicName, musicPath, iniPath);
-			p = p + lstrlen(p) + 1;
-		}*/
