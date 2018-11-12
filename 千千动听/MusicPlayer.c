@@ -14,6 +14,7 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		HANDLE_MSG(hDlg, WM_COMMAND, Cls_OnCommand);
 		HANDLE_MSG(hDlg, WM_CLOSE, Cls_OnClose);
 		HANDLE_MSG(hDlg, WM_HSCROLL, Cls_OnHScroll);
+		HANDLE_MSG(hDlg, WM_TIMER, Cls_OnTimer);
 		HANDLE_MSG(hDlg, WM_CONTEXTMENU, Cls_OnContextMenu);
 		return TRUE;
 	}
@@ -25,15 +26,33 @@ BOOL Cls_OnInitDialog(HWND hDlg, HWND hwndFocus, LPARAM lParam) {
 	TCHAR MenuName[10] = L"音乐";
 	hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_ICON_MUSIC));
 	SetClassLong(hDlg, GCL_HICON, (long)hIcon);
+	//设置声音的控件的位置
+	SendMessage(GetDlgItem(hDlg, IDC_VOICE), TBM_SETRANGE, TRUE, MAKELPARAM(0, 1000));
+	SendMessage(GetDlgItem(hDlg, IDC_VOICE), TBM_SETPOS, TRUE, DEFAULT_VOICE_SIZE);
 	//读取配置文件的歌单
 	LoadMusic(hDlg);
+	//初始化歌曲播放模式列表
+	SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_INSERTSTRING, LTLOOPPLY, (LPARAM)L"列表循环");
+	SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_INSERTSTRING, SGLOOPPLY, (LPARAM)L"单曲循环");
+	SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_INSERTSTRING, RANDPLY, (LPARAM)L"随机播放");
+	switch (MusicPlayModel) {
+		case LTLOOPPLY:
+			SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_SETCURSEL, LTLOOPPLY, (LPARAM)L"列表循环");
+			break;
+		case SGLOOPPLY:
+			SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_SETCURSEL, SGLOOPPLY, (LPARAM)L"单曲循环");
+			break;
+		case RANDPLY:
+			SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_SETCURSEL, RANDPLY, (LPARAM)L"随机播放");
+			break;
+	}
 	return TRUE;
 }
 
 void Cls_OnCommand(HWND hDlg, int id, HWND hwndCtl, UINT codeNotify) {
 	//开始按钮
 	if (id == IDSTART) {
-		Start();
+		Start(hDlg);
 	}
 	//暂停按钮
 	if (id == IDPAUSE) {
@@ -55,9 +74,18 @@ void Cls_OnCommand(HWND hDlg, int id, HWND hwndCtl, UINT codeNotify) {
 		switch (codeNotify)
 		{
 		case LBN_DBLCLK:
-			Start();
+			Start(hDlg);
 			break;
 		}
+	}
+	//播放模式
+	if (id == IDC_COMBO1) {
+		MusicPlayModel=SendMessage(GetDlgItem(hDlg, IDC_COMBO1), CB_GETCURSEL,(WPARAM)NULL,(LPARAM)NULL);
+	}
+
+	//设置声音的大小
+	if (id == IDC_VOICE) {
+	
 	}
 	//快捷菜单
 	if (id == MENUADD) {
@@ -77,13 +105,21 @@ void Cls_OnCommand(HWND hDlg, int id, HWND hwndCtl, UINT codeNotify) {
 }
 
 void Cls_OnHScroll(HWND hDlg, HWND hwndCtl, UINT code, int pos) {
-	HWND hTemp = GetDlgItem(hDlg, IDC_SLIDER1);
+	HWND hSlider1 = GetDlgItem(hDlg, IDC_SLIDER1);
+	HWND hVoice = GetDlgItem(hDlg, IDC_VOICE);
 	UINT iCode = code;
-	if (hwndCtl == hTemp) {
+	if (hwndCtl == hSlider1) {
 		switch (code) {
 		case TB_THUMBPOSITION:
 			StopMusic(CurrentMusic);
 			PlayMusicFromPos(CurrentMusic, pos * 1000);
+			break;
+		}
+	}
+	if (hwndCtl == hVoice) {
+		switch (code) {
+		case TB_THUMBPOSITION:
+			SetMusicVoice(CurrentMusic, pos);
 			break;
 		}
 	}
@@ -107,11 +143,33 @@ void Cls_OnLButtonDown(HWND hDlg, BOOL fDoubleClick, int x, int y, UINT keyFlags
 			SendMessage(GetDlgItem(hDlg, IDC_SLIDER1), TBM_SETRANGE, TRUE, MAKELPARAM(0, MusicTotalSec));
 			SendMessage(GetDlgItem(hDlg, IDC_SLIDER1), TBM_SETPOS, TRUE, 0);
 			//设置一个定时器
-			SetTimer(hDlg, ID_TIMER1, 500, (TIMERPROC)DrawMusicBanner);
+			SetTimer(hDlg, ID_TIMER1, 500,NULL);
 		}
 		else {
 
 			MessageBox(hDlg, L"请选择歌曲", L"请选择歌曲", MB_OK);
+		}
+	}
+}
+
+void Cls_OnTimer(HWND hDlg, UINT id) {
+	if (id == ID_TIMER1) {
+		int MusicMsec, MusicMsecTotal;
+		//获取当前播放的毫秒数
+		MusicMsec = GetMusicPosMsec(CurrentMusic);
+		//获取歌曲总毫秒数
+		MusicMsecTotal = GetMusicMsec(CurrentMusic);
+		//绘制播放条以及时间
+		DrawMusicBanner(hDlg,MusicMsec,MusicMsecTotal);
+		if (MusicMsec == MusicMsecTotal) {
+			//停止歌曲
+			StopMusic(CurrentMusic);
+			//关闭定时器
+			KillTimer(hDlg, ID_TIMER1);
+			//调用播放模式函数选择下一首歌曲
+			PlayModel(hDlg,MusicPlayModel);
+			//发送虚拟键到开始按钮
+			ClickButton(hDlg, IDSTART);
 		}
 	}
 }
@@ -127,13 +185,12 @@ void Cls_OnContextMenu(HWND hDlg, HWND hwndContext, UINT xPos, UINT yPos) {
 
 }
 
-
 void Cls_OnClose(HWND hDlg) {
 	EndDialog(hDlg, 0);
 }
 
-void Start() {
-	HWND hDlg = hDlg_Com;
+void Start(HWND hwnd) {
+	HWND hDlg = hwnd;
 	int listIndex = SendMessage(GetDlgItem(hDlg, IDC_LIST1), LB_GETCURSEL, 0, 0);
 	TCHAR MusicName[MAX_PATH];
 	TCHAR MusicLongPath[MAX_PATH];
@@ -147,14 +204,17 @@ void Start() {
 		GetShortPathName(MusicLongPath, musicShortPath, MAX_PATH);
 		lstrcpy(CurrentMusic, musicShortPath);
 		StartMusic(CurrentMusic);
+		//设置声音的大小
+		SetMusicVoice(CurrentMusic, DEFAULT_VOICE_SIZE);
 		
+
 		Button_SetText(GetDlgItem(hDlg, IDPAUSE), L"暂停");
 		//设置滑块的区间范围
 		MusicTotalSec = GetMusicMsec(CurrentMusic) / 1000;
 		SendMessage(GetDlgItem(hDlg, IDC_SLIDER1), TBM_SETRANGE, TRUE, MAKELPARAM(0, MusicTotalSec));
 		SendMessage(GetDlgItem(hDlg, IDC_SLIDER1), TBM_SETPOS, TRUE, 0);
 		//设置一个定时器
-		SetTimer(hDlg, ID_TIMER1, 500, (TIMERPROC)DrawMusicBanner);
+		SetTimer(hDlg, ID_TIMER1, 500,NULL);
 	}
 	else {
 
@@ -200,26 +260,76 @@ void PlayMusicFromPos(TCHAR *MusicName, int pos) {
 	mciSendString(Order, NULL, 0, NULL);
 }
 
-void DrawMusicBanner() {
-	HWND hDlg = hDlg_Com;
+void SetMusicVoice(TCHAR *MusicName,long lVoiceSize){
+	TCHAR Order[MAX_PATH];
+	wsprintf(Order, L"setaudio %s volume to %d", MusicName,lVoiceSize);
+	mciSendString(Order, 0, 0, 0);
+}
+
+
+void DrawMusicBanner(HWND hwnd,int MusicMsec,int MusicMsecTotal) {
+	HWND hDlg = hwnd;
 	TCHAR MusicTime[10];
-	int MusicMsec;
-	int MusicMsecTotal;
-	//获取当前播放的毫秒数
-	MusicMsec = GetMusicPosMsec(CurrentMusic);
 	wsprintf(MusicTime, L"%02d:%02d", (MusicMsec / 1000) / 60, (MusicMsec / 1000) % 60);
 	//重绘歌曲播放时间
 	Edit_SetText(GetDlgItem(hDlg, IDCMUSICTIME), MusicTime);
 	//重绘歌曲总共时间
-	MusicMsecTotal = GetMusicMsec(CurrentMusic);
 	wsprintf(MusicTime, L"%02d:%02d", (MusicMsecTotal / 1000) / 60, (MusicMsecTotal / 1000) % 60);
 	Edit_SetText(GetDlgItem(hDlg, IDCMUSICLEN), MusicTime);
 	//调整滑块的位置
 	//设置当前滑块的位置
 	SendMessage(GetDlgItem(hDlg, IDC_SLIDER1), TBM_SETPOS, TRUE, MusicMsec / 1000);
-	if (MusicMsec == MusicMsecTotal) {
-		StopMusic(CurrentMusic);
+}
+
+void DrawMusicVoiceBanner(HWND hwnd,long lVoiceSize) {
+
+}
+
+void PlayModel(HWND hwnd,int iMod){
+	switch (iMod) {
+		case LTLOOPPLY:
+			ListLoopPlay(hwnd);
+			break;
+		case SGLOOPPLY:
+			SingleLoopPlay(hwnd);
+			break;
+		case RANDPLY:
+			RandLoopPlay(hwnd);
+			break;
 	}
+}
+void ListLoopPlay(HWND hwnd) {
+	int MusicCount,MusicCursel;
+	//获取总共的歌曲
+	MusicCount=SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_GETCOUNT,(WPARAM)NULL, (LPARAM)NULL);
+	//获取当前的游标
+	MusicCursel = SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_GETCURSEL, (WPARAM)NULL, (LPARAM)NULL);
+	//判断当前是否是最后一首,如果是，则调到第一首，否则调到下一首
+	if (MusicCursel + 1 == MusicCount) {
+		SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_SETCURSEL, 0, (LPARAM)NULL);
+	}else {
+		SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_SETCURSEL, MusicCursel+1, (LPARAM)NULL);
+	}
+}
+
+void SingleLoopPlay(HWND hwnd) {
+	return;
+}
+
+void RandLoopPlay(HWND hwnd) {
+	int MusicCount, RandCursel;
+	//获取总共的歌曲
+	MusicCount = SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_GETCOUNT, (WPARAM)NULL, (LPARAM)NULL);
+	//初始化随机数种子
+	srand((unsigned)time(NULL));
+	//生成一个随机的游标
+	RandCursel=rand() % MusicCount;
+	//让列表选中生成的随机歌曲
+	SendMessage(GetDlgItem(hwnd, IDC_LIST1), LB_SETCURSEL, RandCursel, (LPARAM)NULL);
+}
+
+void ClickButton(HWND hwnd, UINT iButtonID) {
+	SendMessage(GetDlgItem(hwnd, iButtonID), BM_CLICK, (WPARAM)NULL, (LPARAM)NULL);
 }
 
 int GetMusicMsec(TCHAR *MusicName) {
