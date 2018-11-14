@@ -62,10 +62,14 @@ void Cls_OnCommand(HWND hDlg, int id, HWND hwndCtl, UINT codeNotify) {
 		//如果是暂停，则暂停音乐，如果是继续，则继续音乐
 		if (lstrcmp(ButtonVal, L"暂停") == 0) {
 			PauseMusic(CurrentMusic);
+			//显示歌曲暂停提示
+			SendMessage(GetDlgItem(hDlg, IDC_SONGSTATUS), WM_SETTEXT, (WPARAM)0, (LPARAM)L"暂停播放：");
 			Button_SetText(GetDlgItem(hDlg, IDPAUSE), L"继续");
 		}
 		else if (lstrcmp(ButtonVal, L"继续") == 0) {
 			ResumeMusic(CurrentMusic);
+			//显示歌曲暂停提示
+			SendMessage(GetDlgItem(hDlg, IDC_SONGSTATUS), WM_SETTEXT, (WPARAM)0, (LPARAM)L"正在播放：");
 			Button_SetText(GetDlgItem(hDlg, IDPAUSE), L"暂停");
 		}
 	}
@@ -165,10 +169,12 @@ void Cls_OnTimer(HWND hDlg, UINT id) {
 			//停止歌曲
 			StopMusic(CurrentMusic);
 			//关闭定时器
-			KillTimer(hDlg, ID_TIMER1);
+			//KillTimer(hDlg, ID_TIMER1);
 			//调用播放模式函数选择下一首歌曲
+			Sleep(2000);
 			PlayModel(hDlg,MusicPlayModel);
 			//发送虚拟键到开始按钮
+			ClickButton(hDlg, IDSTART);
 			ClickButton(hDlg, IDSTART);
 		}
 	}
@@ -179,7 +185,10 @@ void Cls_OnContextMenu(HWND hDlg, HWND hwndContext, UINT xPos, UINT yPos) {
 		hMenu = CreatePopupMenu();
 		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENUADD, L"添加歌曲");
 		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENUDEL, L"删除歌曲");
+		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENUADDLRC, L"添加歌词");
+		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENUDELLRC, L"删除歌词");
 		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENUCLS, L"清空列表");
+		InsertMenu(hMenu, 0, MF_BYCOMMAND | MF_STRING | MF_ENABLED, MENURM, L"彻底删除");
 		TrackPopupMenu(hMenu, TPM_TOPALIGN | TPM_LEFTALIGN, xPos, yPos, 0, hDlg, NULL);
 	}
 
@@ -207,6 +216,10 @@ void Start(HWND hwnd) {
 		//设置声音的大小
 		SetMusicVoice(CurrentMusic, DEFAULT_VOICE_SIZE);
 		
+		//显示歌名
+		SendMessage(GetDlgItem(hDlg, IDC_SONGSTATUS), WM_SETTEXT, (WPARAM)0, (LPARAM)L"正在播放：");
+		//显示歌名
+		SendMessage(GetDlgItem(hDlg, IDC_SONGNAME), WM_SETTEXT, (WPARAM)0, (LPARAM)MusicName);
 
 		Button_SetText(GetDlgItem(hDlg, IDPAUSE), L"暂停");
 		//设置滑块的区间范围
